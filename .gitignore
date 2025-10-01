@@ -7,3 +7,8 @@ work/
 *.fa
 *.gz
 *.gtf
+ghcr.io/bf528/fastqc:latest
+ghcr.io/bf528/multiqc:latest
+ghcr.io/bf528/verse:latest
+ghcr.io/bf528/star:latest
+ghcr.io/bf528/pandas:latest
