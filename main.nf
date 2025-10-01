@@ -1,5 +1,6 @@
 #!/usr/bin/env nextflow
 include {FASTQC} from './modules/fastqc'
+include {GTF_PARSE} from './modules/gtfparse'
 
 workflow {
     Channel.fromFilePairs(params.reads)
@@ -16,4 +17,6 @@ workflow {
     fastqc_channel.view()
 
     FASTQC(fastqc_channel)
+
+    GTF_PARSE(params.gtf)
 }
