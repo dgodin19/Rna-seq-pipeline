@@ -8,7 +8,7 @@ workflow {
     Channel.fromFilePairs(params.reads)
     | set { align_ch }
 
-    align_ch.view()
+    /*align_ch.view()*/
 
     Channel.fromFilePairs(params.reads)
     | flatMap { sample_id, reads ->
@@ -22,9 +22,8 @@ workflow {
 
     GTF_PARSE(params.gtf)
 
-    Channel.of([params.genome, params.gtf])
-    | set {star_index_ch}
+    STAR(tuple(file(params.genome), file(params.gtf)))
+    STAR_ALIGN(STAR.out.index_dir, align_ch)
 
-    STAR(star_index_ch)
-    STAR_ALIGN(STAR.out, align_ch)
+        
 }

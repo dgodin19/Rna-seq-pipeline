@@ -16,4 +16,10 @@ process FASTQC {
 	"""
 	fastqc $fastq -t $task.cpus
 	"""
+
+	stub:
+	"""
+	touch ${sample}.zip
+	touch ${sample}.html
+	"""
 }

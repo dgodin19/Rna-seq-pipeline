@@ -6,12 +6,13 @@ process STAR_ALIGN {
 	label 'process_high'
 
 	input:
-    path index_dir
-    tuple val(sample), path(reads)
+    path(index_dir)
+    tuple val (sample), path(reads)
+    /*tuple path(index_dir), val(sample), path(R1),path(R2)*/
 
 	output:
 	tuple val(sample), path("*.bam"), emit: bam
-    tuple val(sample), path("*.Log.final.out"), emit: log
+    tuple val(sample), path("*.log.final.out"), emit: log
 
 	script:
 	"""
@@ -22,9 +23,15 @@ process STAR_ALIGN {
         --readFilesCommand zcat \
         --outFileNamePrefix ${sample}_ \
         --outSAMtype BAM SortedByCoordinate \
-        2> ${sample}.Log.final.out
+        2> ${sample}.log.final.out
 
 	"""
+
+    stub:
+    """
+    touch ${sample}.bam
+    touch ${sample}.log.final.out
+    """
 }
 
 

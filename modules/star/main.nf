@@ -9,7 +9,7 @@ process STAR {
     tuple path(reference), path(gtf)
     
 	output:
-	path 'STAR_index/'
+	path('STAR_index/'), emit: index_dir
 
 	script:
 	"""
@@ -20,6 +20,11 @@ process STAR {
          --genomeFastaFiles $reference \
          --sjdbGTFfile $gtf
 
+	"""
+
+	stub:
+	"""
+	mkdir STAR_index
 	"""
 }
 
