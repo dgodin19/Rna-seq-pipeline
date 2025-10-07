@@ -19,7 +19,8 @@ process FASTQC {
 
 	stub:
 	"""
-	touch ${sample}.zip
-	touch ${sample}.html
-	"""
+	touch ${sample}_${fastq.baseName}_fastqc.zip
+	touch ${sample}_${fastq.baseName}_fastqc.html
+    """
+	
 }

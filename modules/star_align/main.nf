@@ -8,7 +8,6 @@ process STAR_ALIGN {
 	input:
     path(index_dir)
     tuple val (sample), path(reads)
-    /*tuple path(index_dir), val(sample), path(R1),path(R2)*/
 
 	output:
 	tuple val(sample), path("*.bam"), emit: bam
