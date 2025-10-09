@@ -4,6 +4,7 @@ include {GTF_PARSE} from './modules/gtfparse'
 include {STAR} from './modules/star'
 include {STAR_ALIGN} from './modules/star_align'
 include {MULTIQC} from './modules/multiqc'
+include {VERSE} from './modules/verse'
 
 workflow {
     Channel.fromFilePairs(params.reads)
@@ -34,6 +35,10 @@ workflow {
     multiqc_ch.view()
 
 
-    MULTIQC(multiqc_ch)            
+    MULTIQC(multiqc_ch) 
+    bam_with_gtf = STAR_ALIGN.out.bam.map { sample, bam ->
+    tuple(sample, file(params.gtf), bam)
+    }
+    VERSE(bam_with_gtf)       
         
 }
