@@ -19,7 +19,7 @@ workflow {
 
     FASTQC(fastqc_channel)
 
-    /*GTF_PARSE(params.gtf)*/
+    GTF_PARSE(params.gtf)
 
 
 

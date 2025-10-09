@@ -11,7 +11,7 @@ process STAR_ALIGN {
 
 	output:
 	tuple val(sample), path("*.bam"), emit: bam
-    tuple val(sample), path("*.log.final.out"), emit: log
+    tuple val(sample), path("${sample}_Log.final.out"), emit: log
 
 	script:
 	"""
