@@ -5,6 +5,7 @@ include {STAR} from './modules/star'
 include {STAR_ALIGN} from './modules/star_align'
 include {MULTIQC} from './modules/multiqc'
 include {VERSE} from './modules/verse'
+include {CONCAT} from './modules/concat'
 
 workflow {
     Channel.fromFilePairs(params.reads)
@@ -39,6 +40,8 @@ workflow {
     bam_with_gtf = STAR_ALIGN.out.bam.map { sample, bam ->
     tuple(sample, file(params.gtf), bam)
     }
-    VERSE(bam_with_gtf)       
+    VERSE(bam_with_gtf)
+
+    CONCAT(VERSE.out.collect())     
         
 }
