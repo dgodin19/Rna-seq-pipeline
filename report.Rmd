@@ -1,0 +1,871 @@
+---
+title: "BF528 Project 2 Report"
+author: "Dennis Godin"
+output: html_document
+bibliography: Project2BF528.bib
+---
+
+**Preface**
+
+This report is organized by filtering method in sequential order. Three filters were applied: row-sum/min-count, mean-median, and IQR/variance. Each section concludes with a corresponding volcano plot. Although results for all three filters are presented and discussed, the primary focus of the analysis is on the row-sum/min-count filter. 
+
+Session information is provided at the end of the document.
+
+**Introduction**
+
+Type 1 diabetes (T1D) is an autoimmune disease characterized by the destruction of pancreatic β-cells, leading to loss of insulin production. Genetic studies have identified TYK2, a member of the Janus kinase (JAK) family, as an important regulator in interferon-α (IFN-α) signaling and a candidate gene linked to T1D susceptibility. The study by Chandra et al.[@chandra_type_2022] investigated how TYK2 influences β-cell development and immune response signaling, particularly in response to IFN-α stimulation. Understanding these mechanisms is essential for clarifying how genetic variation in TYK2 contributes to disease risk and could reveal new therapeutic targets.
+
+To explore this, the authors used both bulk and single-cell RNA sequencing to characterize gene expression changes associated with TYK2 knockout across developmental stages of human pluripotent stem cell–derived pancreatic cells. Bulk RNA sequencing was chosen to quantify transcriptome-wide expression changes between wild-type and TYK2 knockout cells with high sensitivity and statistical power. In their paper, they used the STAR aligner for read mapping, featureCounts and Rsubread for quantification, and DESeq2 for differential expression. This report focuses on reproducing and interpreting the bulk RNA sequencing results from that study.
+
+**Methods**
+
+An RNA-seq analysis pipeline was developed in Nextflow to process and analyze the provided sequencing data. A custom Python script was first used to parse the GTF file and map gene IDs to gene names. Quality control was performed with FastQC v0.12.1 using default parameters[@noauthor_babraham_nodate], and summary reports were generated with MultiQC v1.25 using default parameters based on FastQC outputs and STAR alignment logs[@ewels_multiqc_2016]. The reference genome was indexed and aligned using STAR v2.7.11b with default parameters[@dobin_star_2013]. Gene-level quantification was performed with Verse v0.1.5 using the exon -S flag[@zhu_verse_2016], and the resulting count files were concatenated across samples with pandas.
+
+The final count matrix was filtered using three different approaches. For the row-sum/min-count filter, genes were required to have at least 10 counts in a minimum of three samples. For the variance/IQR filter, genes with an interquartile range greater than 0.5 across samples were retained. For the mean/median expression filter, genes with an average of at least five counts across all samples were kept. Differential expression analysis was performed with DESeq2 v1.46.0 with default parameters[@love_moderated_2014], and gene set enrichment analysis was conducted using FGSEA v1.32.4 and Enrichr also with default parameters[@kuleshov_enrichr_2016; @subramanian_gene_2005]. To aid in the FGSEA analysis, the C2 Canonical Pathways MSIGDB dataset was used. 
+
+**Results** 
+
+**MultiQC**
+
+The MultiQC report indicated overall high-quality sequencing data with no major technical issues. Across all samples, approximately 100 million reads were obtained, with >90% of reads uniquely aligned to the reference genome. The proportion of multimapped reads ranged from 3.3 to 5.2 million (3–5%), and unmapped reads accounted for only 2.1–4.1% of total reads. The average mapped read length was 199.4 bp with a mismatch rate of 0.2%. Phred quality scores remained above 30 across nearly all bases, with a minor drop at the 5′ end consistent with random hexamer priming rather than sequencing error. Adapter content was low (<0.5%) in all samples, and per-base N content remained below 0.3%. Together, these metrics indicate that the sequencing libraries and alignments were of high quality and suitable for downstream differential expression analysis. 
+
+**Filtering**
+
+To reduce noise from lowly expressed genes, I applied three filtering strategies to the counts matrix. Prior to filtering, there were 63,241 genes. For the row-sum/min-count filter, genes were required to have at least 10 counts in at least 3 samples, retaining 20,579 genes (Figure 2). For the mean/median expression filter, genes with an average of at least 5 counts across all samples were kept, resulting in 22,791 genes (Figure 10). For the variance/IQR filter, genes with an interquartile range greater than 0.5 across samples were retained, leaving 34,686 genes (Figure 18). These filters remove genes with low expression or low variability while preserving those with sufficient signal, and the effects of filtering can be seen in the accompanying plots showing gene counts before and after filtering. Although the three filtering strategies are based on different criteria, they retained largely overlapping sets of genes, and downstream analyses were consistent across methods.
+
+**Enrichr analysis**
+
+Enrichr analysis was performed separately on upregulated and downregulated genes using the 2024 WikiPathways Human gene set, applying a significance threshold of padj < 0.05. Consistent enrichment patterns were observed across all three filtering strategies; however, focus is placed on (Figures 3 and 4) and (Tables 2 and 3), with the top 10 differentially expressed genes ranked by padj in (Table 1). Among the upregulated genes, the most significantly enriched pathways included focal adhesion PI3K–Akt–mTOR signaling, PI3K–Akt signaling, and the P53 transcriptional gene network, implicating potential roles in cell growth, stress response, and survival mechanisms. Downregulated genes were primarily associated with developmental and neuronal pathways such as Sudden Infant Death Syndrome (SIDS) susceptibility pathways, cell lineage map for neuronal differentiation, and dopaminergic neurogenesis. While the original study focused on the role of TYK2 in pancreatic lineage differentiation, the enrichment of PI3K–Akt and P53 signaling pathways suggests broader effects of TYK2 loss on cellular signaling, potentially extending to cancer related processes.
+
+**FGSEA analysis**
+
+FGSEA analysis (Figure 6; Table 4) was performed using the MSigDB C2 Canonical Pathways gene set, ranking genes by log₂ fold change and applying a padj<0.05 threshold. The results identified enrichment patterns that closely aligned with those from the Enrichr analysis. Pathways related to neuronal function, including the neuronal system, ADHD/Autism pathways, and neuronal differentiation, were significantly downregulated, suggesting that TYK2 loss may impair neuronal developmental programs. Conversely, upregulated pathways such as the PID–P53 downstream pathway and extracellular matrix organization indicated activation of cellular stress responses, regulation of the cell cycle, and remodeling of extracellular signaling environments. These findings collectively suggest that TYK2 influences a broad range of biological processes, spanning both developmental and oncogenic signaling contexts.
+
+While the FGSEA and Enrichr analyses were based on distinct gene set databases, there was considerable overlap in the pathways identified. Both analyses found P53-related pathways upregulated, along with related pathways such as extracellular matrix organization and focal adhesion PI3K–Akt–mTOR signaling. Similarly, both methods identified downregulation of neuronal and GPCR-related pathways, including dopaminergic neurogenesis. The main differences between the two analyses were in the degree of statistical significance. For instance, dopaminergic neurogenesis had a padj of 3.2×10⁻² in FGSEA but 0.0576 in Enrichr, while GPCR-related pathways had a padj of 2.4×10⁻² in FGSEA compared to 0.3207 in Enrichr. These discrepancies likely reflect differences in gene set composition and enrichment algorithms between the two tools.
+
+**RNA-seq quality control plots**
+
+An rlog transformation was applied to the data before constructing a PCA plot and a sample-to-sample distance heatmap. The PCA plot (Figure 8) shows that PC1 explains 86% of the total variance and PC2 explains 10%, indicating that most of the differences between samples can be attributed to a single major factor, which was likely the experimental condition. Samples cluster clearly by treatment group, suggesting consistent expression profiles within each condition. One experimental sample appears to deviate slightly from its replicates, suggesting potential batch effects or technical variation.
+
+The sample-to-sample distance heatmap (Figure 7) supports these findings. Experimental samples cluster together and are distinct from the control group, demonstrating clear separation between biological conditions. The outlier experimental replicate seen in the PCA plot also appears less correlated to the others in the heatmap. Overall, both plots indicate that the experiment produced reproducible, condition-specific gene expression patterns, with one sample showing minor technical deviation but no major quality concerns.
+
+**Paper comparison**
+
+The study reported 319 upregulated and 412 downregulated genes (731 total) at a significance threshold of padj < 0.05. In comparison, I identified 474 differentially expressed genes using a row-sum filter (217 upregulated, 257 downregulated); 471 genes with a mean–median filter (215 upregulated, 256 downregulated); and 471 genes with a variance/IQR filter (213 upregulated, 258 downregulated), all using the same padj < 0.05 threshold. These differences are likely attributable to my use of Verse for read quantification, whereas the original study used featureCounts and Rsubread. Quantification tools can differ in how reads are assigned to genes, how multi-mapping reads are handled, and which low-count genes are retained, all of which can influence the resulting gene-level counts. Combined with differences in normalization and statistical testing parameters, these factors likely explain the discrepancies in the sets of differentially expressed genes identified.
+
+Comparing my Enrichr analysis (Tables 2 and 3) to the paper’s Reactome enrichment, there were both similarities and differences. Upregulated pathways in both analyses included extracellular matrix organization–related pathways, integrin cell surface interactions, and RTK signaling. For downregulated pathways, the Enrichr results showed partial overlap with the paper’s Reactome enrichment through neuronal system pathways. Direct 1:1 comparisons were limited, likely due to differences in the gene sets used; nonetheless, the Enrichr results indicate meaningful pathway overlap with the paper’s findings.
+
+The FGSEA analysis (Figure 6) utilized the Reactome gene set, enabling more direct comparisons with the paper’s enrichment results. In this case, both the FGSEA and the original Reactome analysis identified the same pathways as upregulated or downregulated. This strong agreement can be attributed to the use of the same underlying gene set, highlighting the influence of gene set choice on pathway enrichment outcomes.
+
+Overall, while there are differences in the number of significant genes and some enrichment results, the core biological trends particularly in ECM, integrin, and RTK-related pathways, remain consistent between my analysis and the published study.
+
+**Future directions**
+
+Future work could expand this analysis in several ways. To complement the current Enrichr and FGSEA enrichment results, additional functional annotation can be performed using tools such as DAVID to identify enriched biological terms and gene clusters. Co-expression analysis could also help reveal broader transcriptional changes associated with TYK2 loss. Since TYK2 is thought to regulate B-cell development, identifying co-expressed or co-regulated genes may provide insight into downstream pathways and potential off-target effects relevant to therapeutic interventions. Finally, the differential expression analysis could be repeated with splice-aware or transcript-level quantification tools such as Kallisto or Salmon to explore isoform-specific effects. Determining which transcripts are preferentially expressed would further clarify how TYK2 influences gene regulation and cellular differentiation.
+
+**Conclusion**
+
+Overall, this analysis was able to reproduce the main findings from the original study using a slightly different pipeline. Both the Enrichr and FGSEA results confirmed similar pathway patterns, including extracellular matrix organization, RTK signaling, and neuronal differentiation. While one experimental sample showed possible batch effects, the PCA plot and sample-to-sample distance heatmap showed that control and experimental groups still clustered clearly. The differences in the total number of differentially expressed genes are likely attributable to my use of Verse for quantification, whereas the original study used featureCounts and Rsubread, as well as differences in preprocessing, filtering, and statistical parameters. Despite these methodological differences, the overall biological trends and pathway-level interpretations remained consistent with the original study.
+
+```{r library-load}
+library(DESeq2)
+library(tidyverse)
+library(ggplot2)
+setwd("/projectnb/bf528/students/dennig2/project-2-dgodin19/results")
+```
+
+
+```{r}
+BiocManager::install("fgsea")
+library(fgsea)
+```
+```{r readin-data}
+counts  <- read.csv("counts_matrix.csv", row.names = 1, check.names = FALSE) 
+colData <- read.csv("colnames.csv", row.names = 1)
+
+```
+
+**Figure 1**
+
+```{r counts-before-plot, echo=FALSE, fig.width=7, fig.height=4}
+
+boxplot(log10(counts + 1),
+        las = 2,
+        col = "lightblue",
+        main = "Distribution of raw counts before filtering",
+        ylab = "log10(count + 1)")
+```
+
+Boxplots of the distribution of raw read counts before filtering. Distributions are similar across all samples, which indicates that sequencing depth was relatively even. Low count genes dominate the boxplots with medians being close to zero. This is consistent with what is expected, as large numbers of genes are expressed weakly or not at all.  
+
+**Start of row-sum/min-count filter**
+
+```{r row-sum-min-count-filter}
+# Simple row-sum / min-count filter
+min.count  <- 10
+min.samples <- 3   
+
+keep <- rowSums(counts >= min.count) >= min.samples
+counts_filt <- counts[keep, ]
+```
+
+**Figure 2**
+
+```{r plot1-row-sum-min-count-filter}
+counts_before <- nrow(counts)
+counts_after  <- nrow(counts_filt)
+# About 60k genes prefiltering, 20k genes postfiltering
+barplot(c(counts_before, counts_after),
+        names = c("Before filtering", "After filtering"),
+        col = c("grey70", "steelblue"),
+        ylab = "Number of genes",
+        main = "Effect of filtering on gene count")
+```
+
+Bar graph showing the number of genes before and after filtering. Lowly expressed genes were removed to improve data quality for downstream analysis.
+
+**Figure 3**
+
+```{r plot2-row-sum-min-count-filter}
+total_before <- rowSums(counts)
+total_after  <- rowSums(counts_filt)
+
+df <- data.frame(
+  total_counts = c(total_before, total_after),
+  status = rep(c("Before", "After"), c(length(total_before), length(total_after)))
+)
+
+ggplot(df, aes(x = total_counts, fill = status)) +
+  geom_density(alpha = 0.5) +
+  scale_x_log10() +
+  labs(title = "Distribution of total counts per gene",
+       x = "Total counts per gene (log10 scale)",
+       y = "Density") +
+  theme_minimal()
+
+
+```
+
+Distribution of total counts per gene before and after filtering. Prior to filtering, lowly expressed genes dominated the distribution. After filtering, these genes were removed, resulting in a density that reflects more highly expressed genes.
+
+```{r deseq2-row-sum-min-count-filter}
+dds <- DESeqDataSetFromMatrix(countData = counts_filt, colData = colData, design = ~ condition)
+dds <- DESeq(dds)
+res <- results(dds)
+res_df <- as.data.frame(res)
+# write.csv(res_df, "rowsummincount.csv")
+```
+
+
+```{r row-sum-min-count-significant-genes}
+
+library(knitr)
+
+gtf_map <- read.delim("gtf_parse_output.txt", header = TRUE, stringsAsFactors = FALSE)
+
+res_df$gene_id <- rownames(res_df)
+
+res_annot <- merge(res_df, gtf_map, by = "gene_id", all.x = TRUE, sort = FALSE)
+
+res_annot <- res_annot[order(res_annot$padj), ]
+
+top10 <- head(res_annot[!is.na(res_annot$padj), ], 10)
+
+#kable(top10[, c("gene_id","gene_name","log2FoldChange","stat","pvalue","padj")],
+#      caption = "Top 10 genes by adjusted p-value (padj)")
+
+padj_thresh <- 0.05
+n_sig <- sum(res_annot$padj < padj_thresh, na.rm = TRUE)
+n_sig
+
+cat("Number of significant genes at padj <", padj_thresh, ":", n_sig, "\n")
+
+
+cat("Number significant at padj < 0.01:", sum(res_annot$padj < 0.01, na.rm = TRUE), "\n")      
+
+```
+
+
+**Table1: Top 10 genes by adjusted p-value (padj) using a simple row-sum / min-count filter**
+
+|      |gene_id            |gene_name       | log2FoldChange|      stat| pvalue| padj|
+|:-----|:------------------|:---------------|--------------:|---------:|------:|----:|
+|5420  |ENSG00000129824.16 |RPS4Y1          |      -8.767526| -52.69156|      0|    0|
+|3164  |ENSG00000108439.11 |PNPO            |      -4.165635| -24.05771|      0|    0|
+|20167 |ENSG00000289575.1  |ENSG00000289575 |       3.732934|  22.74940|      0|    0|
+|17431 |ENSG00000253846.3  |PCDHGA10        |       4.583036|  17.83547|      0|    0|
+|17274 |ENSG00000250616.4  |YPEL3-DT        |      -2.418208| -15.93989|      0|    0|
+|11409 |ENSG00000173262.12 |SLC2A14         |       4.634893|  13.76853|      0|    0|
+|17309 |ENSG00000251129.3  |LINC02506       |      -1.730311| -13.26561|      0|    0|
+|20142 |ENSG00000289456.1  |ENSG00000289456 |      -2.180051| -11.82651|      0|    0|
+|19743 |ENSG00000286339.1  |ENSG00000286339 |      -1.703191| -11.28144|      0|    0|
+|16266 |ENSG00000234797.5  |RPS3AP6         |      -1.454527| -10.82835|      0|    0|
+
+Top 10 genes with the lowest adjusted p-values identified using a simple row-sum/min-count filter. Log₂ fold change indicates direction and magnitude of differential expression between experimental and control conditions.
+
+```{r significant-positive-genes-row-sum-min-count}
+significant_positive_genes <- res_annot %>% filter(padj < 0.05 & log2FoldChange > 0) %>% select(gene_name)
+# write.table(significant_positive_genes, file = "positive_sig_genes_rowsummincount_.txt", col.names = F, row.names = F, quote = F)
+
+```
+
+**Table2: Enrichr table for up-regulated pathways using row-sum/min-count filter **
+
+| Index | Name                                                               | P-value     | Adjusted p-value | Odds Ratio | Combined score |
+|-------|--------------------------------------------------------------------|-------------|------------------|------------|----------------|
+| 1     | Focal Adhesion PI3K Akt mTOR Signaling WP3932                      | 0.000001200 | 0.0004668        | 5.03       | 68.53          |
+| 2     | PI3K Akt Signaling WP4172                                          | 0.000004598 | 0.0008591        | 4.47       | 54.98          |
+| 3     | P53 Transcriptional Gene Network WP4963                            | 0.000006626 | 0.0008591        | 9.09       | 108.34         |
+| 4     | Pleural Mesothelioma WP5087                                        | 0.00002442  | 0.002375         | 3.66       | 38.88          |
+| 5     | Markers Of Kidney Cell Lineage WP5236                              | 0.00004247  | 0.003304         | 10.59      | 106.56         |
+| 6     | Heart Development WP1591                                           | 0.0001105   | 0.006272         | 11.94      | 108.78         |
+| 7     | Cytokine Cytokine Receptor Interaction WP5473                      | 0.0001129   | 0.006272         | 4.28       | 38.87          |
+| 8     | Cell Interactions Of The Pancreatic Cancer Microenvironment WP5284 | 0.0001671   | 0.008124         | 16.87      | 146.70         |
+| 9     | Osteoarthritic Chondrocyte Hypertrophy WP5373                      | 0.0002045   | 0.008839         | 10.34      | 87.88          |
+| 10    | Complement And Coagulation Cascades WP558                          | 0.0004123   | 0.01445          | 8.78       | 68.43          |
+
+Top 10 up-regulated pathways found with Enrichr using a row-sum/min-count filter. Genes were compared to the 2024 Human Wiki Pathways. 
+
+**Figure 4**
+
+```{r 3f-positive-genes-row-sum, echo=FALSE, out.width="70%"}
+knitr::include_graphics("positivegenesrowsummincount3f.png")
+```
+
+Analogous plot to 3f in the original study, using Enrichr and up-regulated pathways.
+
+```{r significant-negative-genes-row-sum-min-count}
+significant_negative_genes <- res_annot %>% filter(padj < 0.05 & log2FoldChange < 0) %>% select(gene_name)
+# write.table(significant_negative_genes, file = "negative_sig_genes_rowsummincount_.txt", col.names = F, row.names = F, quote = F)
+
+```
+
+**Table3: Enrichr table for down-regulated pathways using row-sum/min-count filter **
+
+| Index | Name                                                            | P-value     | Adjusted p-value | Odds Ratio | Combined score |
+|-------|-----------------------------------------------------------------|-------------|------------------|------------|----------------|
+| 1     | Sudden Infant Death Syndrome SIDS Susceptibility Pathways WP706 | 1.265e-7    | 0.00003895       | 7.25       | 115.18         |
+| 2     | Cell Lineage Map For Neuronal Differentiation WP5417            | 0.000008142 | 0.001254         | 6.51       | 76.30          |
+| 3     | Dopaminergic Neurogenesis WP2855                                | 0.0005611   | 0.05761          | 11.99      | 89.75          |
+| 4     | Neurogenesis Regulation In The Olfactory Epithelium WP5265      | 0.0008182   | 0.06300          | 7.51       | 53.41          |
+| 5     | GPCRs Other WP117                                               | 0.006392    | 0.3207           | 4.54       | 22.91          |
+| 6     | Neurotransmitter Disorders WP4220                               | 0.006915    | 0.3207           | 19.35      | 96.24          |
+| 7     | Ectoderm Differentiation WP2858                                 | 0.008923    | 0.3207           | 3.55       | 16.76          |
+| 8     | Enterohepatic Circulation Of Bile Acids WP5396                  | 0.009972    | 0.3207           | 15.48      | 71.32          |
+| 9     | Estrogen Receptor Pathway WP2881                                | 0.01169     | 0.3207           | 14.07      | 62.60          |
+| 10    | Cell Type Dependent Selectivity Of CCK2R Signaling WP3679       | 0.01169     | 0.3207           | 14.07      | 62.60          |
+
+Top 10 down-regulated pathways found with Enrichr using a row-sum/min-count filter. Genes were compared to the 2024 Human Wiki Pathways. 
+
+**Figure 5**
+
+```{r 3f-negative-genes-row-sum, echo=FALSE, out.width="70%"}
+knitr::include_graphics("negativegensrowsummincount3f.png")
+```
+
+Analogous plot to 3f in the original study, using Enrichr and down-regulated pathways.
+
+```{r row-sum-fgsea}
+deseq2_res_ordered <- res_annot %>% 
+  drop_na() %>% 
+  distinct(gene_name, .keep_all = TRUE) %>%
+  arrange(desc(log2FoldChange))
+
+rnk_list <- setNames(deseq2_res_ordered$log2FoldChange, deseq2_res_ordered$gene_name)
+#head(rnk_list, 10)
+
+pathways <- gmtPathways("c2.cp.v2025.1.Hs.symbols.gmt")
+#head(pathways)
+
+```
+
+
+
+**Figure 6**
+
+```{r}
+fgseaRes <- fgsea(pathways, rnk_list, minSize=15, maxSize=500)
+
+#head(fgseaRes[order(pval), ])
+
+plotEnrichment(pathways[["REACTOME_CELL_CYCLE_CHECKPOINTS"]],
+               rnk_list) + labs(title="REACTOME_CELL_CYCLE_CHECKPOINTS")
+```
+
+GSEA enrichment plot. There is an overall negative enrichment score, indicating that genes are more down-regulated for the Reactome cell cycle checkpoints pathway when comparing experimental samples to control. 
+
+**Table4: FGSEA pathways using row-sum/min-count filter **
+
+```{r}
+topPathwaysUp <- fgseaRes[ES > 0][head(order(pval), n=10), pathway]
+topPathwaysDown <- fgseaRes[ES < 0][head(order(pval), n=10), pathway]
+topPathways <- c(topPathwaysUp, rev(topPathwaysDown))
+plotGseaTable(pathways[topPathways], rnk_list, fgseaRes, 
+              gseaParam=0.5)
+```
+
+GSEA table showing the most significantly enriched pathways among differentially expressed genes. The normalized enrichment score (NES) indicates the direction and magnitude of regulation, with NES > 0 corresponding to up-regulated pathways and NES < 0 to down regulated pathways.
+
+**Figure 7**
+
+```{r quality-control-plot-row-sum-min-filter}
+    library(pheatmap)
+    rld <- rlog(dds, blind=FALSE)
+    sampleDists <- dist(t(assay(rld)))
+    library("RColorBrewer")
+    sampleDistMatrix <- as.matrix(sampleDists)
+    rownames(sampleDistMatrix) <- paste(rld$condition, rld$type, sep="-")
+    colnames(sampleDistMatrix) <- NULL
+    colors <- colorRampPalette( rev(brewer.pal(9, "Blues")) )(255)
+    pheatmap(sampleDistMatrix,
+         clustering_distance_rows=sampleDists,
+         clustering_distance_cols=sampleDists,
+         col=colors)
+```
+
+Sample-to-sample distance matrix. Experimental and control samples mostly clustered separately, with one experimental sample outlier. 
+
+**Figure 8**
+
+```{r pca-plot-row-sum-min}
+    plotPCA(rld, intgroup="condition")
+```
+
+PCA plot with 2 principal components explaining the majority of the variance. There is one experimental sample outlier, which aligns with the sample-to-sample distance matrix. 
+
+**Figure 9**
+
+```{r row-sum-min-filter-volcano-plot}
+res_annot$significant <- ifelse(res_annot$padj < 0.05 & abs(res_annot$log2FoldChange) > 1, "Yes", "No")
+
+ggplot(res_annot, aes(x = log2FoldChange, y = -log10(padj), color = significant)) +
+  geom_point(alpha = 0.6, size = 1.5) +
+  scale_color_manual(values = c("No" = "grey", "Yes" = "red")) +
+  theme_minimal() +
+  labs(
+    title = "Volcano Plot of DESeq2 Results",
+    x = "log2 Fold Change",
+    y = "-log10 Adjusted p-value"
+  ) +
+  geom_hline(yintercept = -log10(0.05), linetype = "dashed", color = "blue") +
+  geom_vline(xintercept = c(-1, 1), linetype = "dashed", color = "blue")
+
+```
+
+Analogous volcano plot to 3c in the paper. 
+
+**Start of mean-median-expression filter**
+
+```{r mean-median-expression-filter}
+# Mean/median expression filter
+keep <- rowMeans(counts) >= 5   # keep genes with mean >= 5 raw counts
+counts_filt <- counts[keep, ]
+
+```
+
+**Figure 10**
+
+```{r plot1-mean-median-expression-filter}
+# About 60k genes pre filter, 20k genes post filter
+counts_before <- nrow(counts)
+counts_after  <- nrow(counts_filt)
+
+barplot(c(counts_before, counts_after),
+        names = c("Before filtering", "After filtering"),
+        col = c("grey70", "steelblue"),
+        ylab = "Number of genes",
+        main = "Effect of filtering on gene count")
+```
+
+Bar graph showing the number of genes before and after filtering. Lowly expressed genes were removed to improve data quality for downstream analysis.
+
+**Figure 11**
+
+```{r plot2-mean-median-expression-filter}
+total_before <- rowSums(counts)
+total_after  <- rowSums(counts_filt)
+
+df <- data.frame(
+  total_counts = c(total_before, total_after),
+  status = rep(c("Before", "After"), c(length(total_before), length(total_after)))
+)
+
+ggplot(df, aes(x = total_counts, fill = status)) +
+  geom_density(alpha = 0.5) +
+  scale_x_log10() +
+  labs(title = "Distribution of total counts per gene",
+       x = "Total counts per gene (log10 scale)",
+       y = "Density") +
+  theme_minimal()
+
+
+```
+
+Distribution of total counts per gene before and after filtering. Prior to filtering, lowly expressed genes dominated the distribution. After filtering, these genes were removed, resulting in a density that reflects more highly expressed genes.
+
+```{r deseq2-mean-median-expression-filter}
+dds <- DESeqDataSetFromMatrix(countData = counts_filt, colData = colData, design = ~ condition)
+dds <- DESeq(dds)
+res <- results(dds)
+res_df <- as.data.frame(res)
+# write.csv(res_df, "meanmedian.csv")
+```
+
+
+```{r mean-median-most-significant-genes}
+
+library(knitr)
+
+gtf_map <- read.delim("gtf_parse_output.txt", header = TRUE, stringsAsFactors = FALSE)
+
+res_df$gene_id <- rownames(res_df)
+
+res_annot <- merge(res_df, gtf_map, by = "gene_id", all.x = TRUE, sort = FALSE)
+
+res_annot <- res_annot[order(res_annot$padj), ]
+
+top10 <- head(res_annot[!is.na(res_annot$padj), ], 10)
+
+#kable(top10[, c("gene_id","gene_name","log2FoldChange","stat","pvalue","padj")],
+#      caption = "Top 10 genes by adjusted p-value (padj)")
+
+padj_thresh <- 0.05
+n_sig <- sum(res_annot$padj < padj_thresh, na.rm = TRUE)
+n_sig
+
+cat("Number of significant genes at padj <", padj_thresh, ":", n_sig, "\n")
+
+
+cat("Number significant at padj < 0.01:", sum(res_annot$padj < 0.01, na.rm = TRUE), "\n")      
+
+```
+
+**Table5: Top 10 genes by adjusted p-value (padj) using a mean/median expression filter **
+
+|      |gene_id            |gene_name       | log2FoldChange|      stat| pvalue| padj|
+|:-----|:------------------|:---------------|--------------:|---------:|------:|----:|
+|5532  |ENSG00000129824.16 |RPS4Y1          |      -8.768629| -52.32937|      0|    0|
+|3222  |ENSG00000108439.11 |PNPO            |      -4.166637| -24.11124|      0|    0|
+|22284 |ENSG00000289575.1  |ENSG00000289575 |       3.731892|  22.76412|      0|    0|
+|18641 |ENSG00000253846.3  |PCDHGA10        |       4.582102|  17.92996|      0|    0|
+|18429 |ENSG00000250616.4  |YPEL3-DT        |      -2.419230| -15.98375|      0|    0|
+|11714 |ENSG00000173262.12 |SLC2A14         |       4.633924|  13.86160|      0|    0|
+|18475 |ENSG00000251129.3  |LINC02506       |      -1.731290| -13.21594|      0|    0|
+|22253 |ENSG00000289456.1  |ENSG00000289456 |      -2.181078| -11.93227|      0|    0|
+|21709 |ENSG00000286339.1  |ENSG00000286339 |      -1.704146| -11.27827|      0|    0|
+|21458 |ENSG00000282914.1  |ENSG00000282914 |       3.649471|  10.86945|      0|    0|
+
+Top 10 genes with the lowest adjusted p-values identified using a mean/median expression filter. Log₂ fold change indicates direction and magnitude of differential expression between experimental and control conditions.
+
+```{r significant-positive-genes-mean-median}
+significant_positive_genes <- res_annot %>% filter(padj < 0.05 & log2FoldChange > 0) %>% select(gene_name)
+#write.table(significant_positive_genes, file = "positive_sig_genes_meanmedian_.txt", col.names = F, row.names = F, quote = F)
+
+```
+
+**Table6: Enrichr table for up-regulated pathways using mean-median filter**
+
+| Index | Name                                                               | P-value     | Adjusted p-value | Odds Ratio | Combined score |
+|-------|--------------------------------------------------------------------|-------------|------------------|------------|----------------|
+| 1     | Focal Adhesion PI3K Akt mTOR Signaling WP3932                      | 0.000001200 | 0.0004668        | 5.03       | 68.53          |
+| 2     | PI3K Akt Signaling WP4172                                          | 0.000004598 | 0.0008591        | 4.47       | 54.98          |
+| 3     | P53 Transcriptional Gene Network WP4963                            | 0.000006626 | 0.0008591        | 9.09       | 108.34         |
+| 4     | Pleural Mesothelioma WP5087                                        | 0.00002442  | 0.002375         | 3.66       | 38.88          |
+| 5     | Markers Of Kidney Cell Lineage WP5236                              | 0.00004247  | 0.003304         | 10.59      | 106.56         |
+| 6     | Heart Development WP1591                                           | 0.0001105   | 0.006272         | 11.94      | 108.78         |
+| 7     | Cytokine Cytokine Receptor Interaction WP5473                      | 0.0001129   | 0.006272         | 4.28       | 38.87          |
+| 8     | Cell Interactions Of The Pancreatic Cancer Microenvironment WP5284 | 0.0001671   | 0.008124         | 16.87      | 146.70         |
+| 9     | Osteoarthritic Chondrocyte Hypertrophy WP5373                      | 0.0002045   | 0.008839         | 10.34      | 87.88          |
+| 10    | Complement And Coagulation Cascades WP558                          | 0.0004123   | 0.01445          | 8.78       | 68.43          |
+
+Top 10 up-regulated pathways found with Enrichr using a mean-median filter. Genes were compared to the 2024 Human Wiki Pathways. 
+
+**Figure 12**
+
+```{r 3f-positive-genes-mean-median, echo=FALSE, out.width="70%"}
+knitr::include_graphics("positivegenesmeanmedian3f.png")
+```
+
+Analogous plot to 3f in the original study, using Enrichr and up-regulated pathways.
+
+```{r significant-negative-genes-mean-median}
+significant_negative_genes <- res_annot %>% filter(padj < 0.05 & log2FoldChange < 0) %>% select(gene_name)
+#write.table(significant_negative_genes, file = "negative_sig_genes_meanmedian_.txt", col.names = F, row.names = F, quote = F)
+
+```
+
+**Table7: Enrichr table for down-regulated pathways using mean-median filter**
+
+| Index | Name                                                            | P-value     | Adjusted p-value | Odds Ratio | Combined score |
+|-------|-----------------------------------------------------------------|-------------|------------------|------------|----------------|
+| 1     | Sudden Infant Death Syndrome SIDS Susceptibility Pathways WP706 | 1.265e-7    | 0.00003895       | 7.25       | 115.18         |
+| 2     | Cell Lineage Map For Neuronal Differentiation WP5417            | 0.000008142 | 0.001254         | 6.51       | 76.30          |
+| 3     | Dopaminergic Neurogenesis WP2855                                | 0.0005611   | 0.05761          | 11.99      | 89.75          |
+| 4     | Neurogenesis Regulation In The Olfactory Epithelium WP5265      | 0.0008182   | 0.06300          | 7.51       | 53.41          |
+| 5     | GPCRs Other WP117                                               | 0.006392    | 0.3207           | 4.54       | 22.91          |
+| 6     | Neurotransmitter Disorders WP4220                               | 0.006915    | 0.3207           | 19.35      | 96.24          |
+| 7     | Ectoderm Differentiation WP2858                                 | 0.008923    | 0.3207           | 3.55       | 16.76          |
+| 8     | Enterohepatic Circulation Of Bile Acids WP5396                  | 0.009972    | 0.3207           | 15.48      | 71.32          |
+| 9     | Estrogen Receptor Pathway WP2881                                | 0.01169     | 0.3207           | 14.07      | 62.60          |
+| 10    | Cell Type Dependent Selectivity Of CCK2R Signaling WP3679       | 0.01169     | 0.3207           | 14.07      | 62.60          |
+
+Top 10 down-regulated pathways found with Enrichr using a mean-median filter. Genes were compared to the 2024 Human Wiki Pathways. 
+
+**Figure 13**
+
+```{r 3f-negative-mean-median, echo=FALSE, out.width="70%"}
+knitr::include_graphics("negativegenesmeanmedian3f.png")
+```
+
+Analogous plot to 3f in the original study, using Enrichr and down-regulated pathways.
+
+
+
+**Figure 14**
+
+```{r mean-median-fgsea}
+deseq2_res_ordered <- res_annot %>% 
+  drop_na() %>% 
+  distinct(gene_name, .keep_all = TRUE) %>%
+  arrange(desc(log2FoldChange))
+
+rnk_list <- setNames(deseq2_res_ordered$log2FoldChange, deseq2_res_ordered$gene_name)
+#head(rnk_list, 10)
+
+pathways <- gmtPathways("c2.cp.v2025.1.Hs.symbols.gmt")
+#head(pathways)
+
+fgseaRes <- fgsea(pathways, rnk_list, minSize=15, maxSize=500)
+
+#head(fgseaRes[order(pval), ])
+
+plotEnrichment(pathways[["REACTOME_CELL_CYCLE_CHECKPOINTS"]],
+               rnk_list) + labs(title="REACTOME_CELL_CYCLE_CHECKPOINTS")
+```
+
+GSEA enrichment plot. There is an overall negative enrichment score, indicating that genes are more down-regulated for the Reactome cell cycle checkpoints pathway when comparing experimental samples to control. 
+
+**Table8: FGSEA for mean-median filter**
+
+```{r}
+topPathwaysUp <- fgseaRes[ES > 0][head(order(pval), n=10), pathway]
+topPathwaysDown <- fgseaRes[ES < 0][head(order(pval), n=10), pathway]
+topPathways <- c(topPathwaysUp, rev(topPathwaysDown))
+plotGseaTable(pathways[topPathways], rnk_list, fgseaRes, 
+              gseaParam=0.5)
+```
+
+GSEA table showing the most significantly enriched pathways among differentially expressed genes. The normalized enrichment score (NES) indicates the direction and magnitude of regulation, with NES > 0 corresponding to up-regulated pathways and NES < 0 to down regulated pathways.
+
+**Figure 15**
+
+```{r quality-control-plots-mean-median}
+    library(pheatmap)
+    rld <- rlog(dds, blind=FALSE)
+    sampleDists <- dist(t(assay(rld)))
+    library("RColorBrewer")
+    sampleDistMatrix <- as.matrix(sampleDists)
+    rownames(sampleDistMatrix) <- paste(rld$condition, rld$type, sep="-")
+    colnames(sampleDistMatrix) <- NULL
+    colors <- colorRampPalette( rev(brewer.pal(9, "Blues")) )(255)
+    pheatmap(sampleDistMatrix,
+         clustering_distance_rows=sampleDists,
+         clustering_distance_cols=sampleDists,
+         col=colors)
+```
+
+Sample-to-sample distance matrix. Experimental and control samples mostly clustered separately, with one experimental sample outlier. 
+
+**Figure 16**
+
+```{r pca-plot-mean-median}
+    plotPCA(rld, intgroup="condition")
+```
+
+PCA plot with 2 principal components explaining the majority of the variance. There is one experimental sample outlier, which aligns with the sample-to-sample distance matrix. 
+
+**Figure 17**
+
+```{r mean-median-filter-volcano-plot}
+res_annot$significant <- ifelse(res_annot$padj < 0.05 & abs(res_annot$log2FoldChange) > 1, "Yes", "No")
+
+ggplot(res_annot, aes(x = log2FoldChange, y = -log10(padj), color = significant)) +
+  geom_point(alpha = 0.6, size = 1.5) +
+  scale_color_manual(values = c("No" = "grey", "Yes" = "red")) +
+  theme_minimal() +
+  labs(
+    title = "Volcano Plot of DESeq2 Results",
+    x = "log2 Fold Change",
+    y = "-log10 Adjusted p-value"
+  ) +
+  geom_hline(yintercept = -log10(0.05), linetype = "dashed", color = "blue") +
+  geom_vline(xintercept = c(-1, 1), linetype = "dashed", color = "blue")
+
+```
+
+Analogous volcano plot to 3c in the paper. 
+
+**Start of variance/IQR filter section**
+
+```{r variance-IQR-filter}
+# Variance / IQR filter
+iqr_vals <- apply(counts, 1, IQR)
+keep <- iqr_vals > 0.5   # pick threshold after checking distribution
+counts_filt <- counts[keep, ]
+
+```
+
+**Figure 18**
+
+```{r plot1-variance-IQR-filter}
+counts_before <- nrow(counts)
+counts_after  <- nrow(counts_filt)
+# About 60k genes prefiltering, about 30k genes post filtering
+barplot(c(counts_before, counts_after),
+        names = c("Before filtering", "After filtering"),
+        col = c("grey70", "steelblue"),
+        ylab = "Number of genes",
+        main = "Effect of filtering on gene count")
+```
+
+Bar graph showing the number of genes before and after filtering. Lowly expressed genes were removed to improve data quality for downstream analysis.
+
+**Figure 19**
+
+```{r plot2-variance-IQR-filter}
+total_before <- rowSums(counts)
+total_after  <- rowSums(counts_filt)
+
+df <- data.frame(
+  total_counts = c(total_before, total_after),
+  status = rep(c("Before", "After"), c(length(total_before), length(total_after)))
+)
+
+ggplot(df, aes(x = total_counts, fill = status)) +
+  geom_density(alpha = 0.5) +
+  scale_x_log10() +
+  labs(title = "Distribution of total counts per gene",
+       x = "Total counts per gene (log10 scale)",
+       y = "Density") +
+  theme_minimal()
+
+
+```
+
+Distribution of total counts per gene before and after filtering. Prior to filtering, lowly expressed genes dominated the distribution. After filtering, these genes were removed, resulting in a density that reflects more highly expressed genes.
+
+```{r deseq2-variance-IQR-filter}
+dds <- DESeqDataSetFromMatrix(countData = counts_filt, colData = colData, design = ~ condition)
+dds <- DESeq(dds)
+res <- results(dds)
+res_df <- as.data.frame(res)
+# write.csv(res_df, "varianceiqr.csv")
+```
+
+
+
+```{r variance-IQR-most-significant-genes}
+
+library(knitr)
+
+gtf_map <- read.delim("gtf_parse_output.txt", header = TRUE, stringsAsFactors = FALSE)
+
+res_df$gene_id <- rownames(res_df)
+
+res_annot <- merge(res_df, gtf_map, by = "gene_id", all.x = TRUE, sort = FALSE)
+
+res_annot <- res_annot[order(res_annot$padj), ]
+
+top10 <- head(res_annot[!is.na(res_annot$padj), ], 10)
+
+#kable(top10[, c("gene_id","gene_name","log2FoldChange","stat","pvalue","padj")],
+#      caption = "Top 10 genes by adjusted p-value (padj)")
+
+padj_thresh <- 0.05
+n_sig <- sum(res_annot$padj < padj_thresh, na.rm = TRUE)
+n_sig
+
+cat("Number of significant genes at padj <", padj_thresh, ":", n_sig, "\n")
+
+
+cat("Number significant at padj < 0.01:", sum(res_annot$padj < 0.01, na.rm = TRUE), "\n")      
+
+```
+
+**Table9: Top 10 genes by adjusted p-value (padj) using a variance/IQR filter**
+
+
+|      |gene_id            |gene_name       | log2FoldChange|      stat| pvalue| padj|
+|:-----|:------------------|:---------------|--------------:|---------:|------:|----:|
+|5921  |ENSG00000129824.16 |RPS4Y1          |      -8.769380| -52.27479|      0|    0|
+|3413  |ENSG00000108439.11 |PNPO            |      -4.167282| -23.80978|      0|    0|
+|33745 |ENSG00000289575.1  |ENSG00000289575 |       3.731176|  22.49083|      0|    0|
+|25151 |ENSG00000253846.3  |PCDHGA10        |       4.581457|  17.93521|      0|    0|
+|24523 |ENSG00000250616.4  |YPEL3-DT        |      -2.419902| -15.68853|      0|    0|
+|12678 |ENSG00000173262.12 |SLC2A14         |       4.633201|  14.04706|      0|    0|
+|24650 |ENSG00000251129.3  |LINC02506       |      -1.731930| -13.06937|      0|    0|
+|33673 |ENSG00000289456.1  |ENSG00000289456 |      -2.181764| -11.80041|      0|    0|
+|32322 |ENSG00000286339.1  |ENSG00000286339 |      -1.704721| -11.18946|      0|    0|
+|21731 |ENSG00000234797.5  |RPS3AP6         |      -1.456134| -10.75341|      0|    0|
+
+Top 10 genes with the lowest adjusted p-values identified using a variance/IQR filter. Log₂ fold change indicates direction and magnitude of differential expression between experimental and control conditions.
+
+
+```{r significant-positive-genes-variance-IQR}
+significant_positive_genes <- res_annot %>% filter(padj < 0.05 & log2FoldChange > 0) %>% select(gene_name)
+#write.table(significant_positive_genes, file = "positive_sig_genes_varianceIQR_.txt", col.names = F, row.names = F, quote = F)
+
+```
+
+**Table10: Enrichr table for up-regulated pathways using variance/IQR filter**
+
+| Index | Name                                                               | P-value     | Adjusted p-value | Odds Ratio | Combined score |
+|-------|--------------------------------------------------------------------|-------------|------------------|------------|----------------|
+| 1     | PI3K Akt Signaling WP4172                                          | 7.397e-7    | 0.0001818        | 4.91       | 69.31          |
+| 2     | Focal Adhesion PI3K Akt mTOR Signaling WP3932                      | 9.493e-7    | 0.0001818        | 5.13       | 71.13          |
+| 3     | Pleural Mesothelioma WP5087                                        | 0.000004796 | 0.0005534        | 4.00       | 48.98          |
+| 4     | P53 Transcriptional Gene Network WP4963                            | 0.000005780 | 0.0005534        | 9.26       | 111.74         |
+| 5     | Cytokine Cytokine Receptor Interaction WP5473                      | 0.00009570  | 0.006463         | 4.36       | 40.36          |
+| 6     | Heart Development WP1591                                           | 0.0001012   | 0.006463         | 12.17      | 111.96         |
+| 7     | Cell Interactions Of The Pancreatic Cancer Microenvironment WP5284 | 0.0001556   | 0.008511         | 17.19      | 150.77         |
+| 8     | Osteoarthritic Chondrocyte Hypertrophy WP5373                      | 0.0001876   | 0.008980         | 10.55      | 90.50          |
+| 9     | Hippo Merlin Signaling Dysregulation WP4541                        | 0.0003029   | 0.01208          | 5.92       | 47.93          |
+| 10    | Complement And Coagulation Cascades WP558                          | 0.0003786   | 0.01208          | 8.95       | 70.52          |
+
+Top 10 up-regulated pathways found with Enrichr using a variance/IQR filter. Genes were compared to the 2024 Human Wiki Pathways. 
+
+**Figure 20**
+
+```{r 3f-positive-genes-variance-IQR, echo=FALSE, out.width="70%"}
+knitr::include_graphics("positivegenesvarianceIQR3f.png")
+```
+
+Analogous plot to 3f in the original study, using Enrichr and up-regulated pathways.
+
+```{r significant-negative-genes-variance-IQR}
+significant_negative_genes <- res_annot %>% filter(padj < 0.05 & log2FoldChange < 0) %>% select(gene_name)
+#write.table(significant_negative_genes, file = "negative_sig_genes_varianceIQR_.txt", col.names = F, row.names = F, quote = F)
+
+```
+
+
+**Table11: Enrichr table for down-regulated pathways using variance/IQR filter**
+
+| Index | Name                                                            | P-value    | Adjusted p-value | Odds Ratio | Combined score |
+|-------|-----------------------------------------------------------------|------------|------------------|------------|----------------|
+| 1     | Sudden Infant Death Syndrome SIDS Susceptibility Pathways WP706 | 1.323e-7   | 0.00004074       | 7.22       | 114.38         |
+| 2     | Cell Lineage Map For Neuronal Differentiation WP5417            | 0.00005493 | 0.008459         | 5.77       | 56.55          |
+| 3     | Dopaminergic Neurogenesis WP2855                                | 0.0005694  | 0.05846          | 11.94      | 89.22          |
+| 4     | Calcium Regulation In Cardiac Cells WP536                       | 0.003506   | 0.2582           | 3.80       | 21.46          |
+| 5     | Myometrial Relaxation And Contraction Pathways WP289            | 0.004192   | 0.2582           | 3.67       | 20.08          |
+| 6     | Neurogenesis Regulation In The Olfactory Epithelium WP5265      | 0.006256   | 0.2682           | 5.85       | 29.69          |
+| 7     | GPCRs Other WP117                                               | 0.006495   | 0.2682           | 4.52       | 22.75          |
+| 8     | Neurotransmitter Disorders WP4220                               | 0.006967   | 0.2682           | 19.27      | 95.71          |
+| 9     | Enterohepatic Circulation Of Bile Acids WP5396                  | 0.01005    | 0.3296           | 15.42      | 70.92          |
+| 10    | Estrogen Receptor Pathway WP2881                                | 0.01177    | 0.3296           | 14.01      | 62.25          |
+
+Top 10 down-regulated pathways found with Enrichr using a variance/IQR filter. Genes were compared to the 2024 Human Wiki Pathways. 
+
+**Figure 21** 
+
+```{r 3f-negative-genes-variance-IQR, echo=FALSE, out.width="70%"}
+knitr::include_graphics("negativegenesvarianceIQR3f.png")
+```
+
+Analogous plot to 3f in the original study, using Enrichr and down-regulated pathways.
+
+
+
+**Figure 22**
+
+```{r variance-IQR-fgsea}
+deseq2_res_ordered <- res_annot %>% 
+  drop_na() %>% 
+  distinct(gene_name, .keep_all = TRUE) %>%
+  arrange(desc(log2FoldChange))
+
+rnk_list <- setNames(deseq2_res_ordered$log2FoldChange, deseq2_res_ordered$gene_name)
+#head(rnk_list, 10)
+
+pathways <- gmtPathways("c2.cp.v2025.1.Hs.symbols.gmt")
+#head(pathways)
+
+fgseaRes <- fgsea(pathways, rnk_list, minSize=15, maxSize=500)
+
+#head(fgseaRes[order(pval), ])
+
+plotEnrichment(pathways[["REACTOME_CELL_CYCLE_CHECKPOINTS"]],
+               rnk_list) + labs(title="REACTOME_CELL_CYCLE_CHECKPOINTS")
+
+
+```
+
+GSEA enrichment plot. There is an overall negative enrichment score, indicating that genes are more down-regulated for the Reactome cell cycle checkpoints pathway when comparing experimental samples to control. 
+
+**Table12: FGSEA for variance/IQR filter**
+
+```{r}
+topPathwaysUp <- fgseaRes[ES > 0][head(order(pval), n=10), pathway]
+topPathwaysDown <- fgseaRes[ES < 0][head(order(pval), n=10), pathway]
+topPathways <- c(topPathwaysUp, rev(topPathwaysDown))
+plotGseaTable(pathways[topPathways], rnk_list, fgseaRes, 
+              gseaParam=0.5)
+```
+
+GSEA table showing the most significantly enriched pathways among differentially expressed genes. The normalized enrichment score (NES) indicates the direction and magnitude of regulation, with NES > 0 corresponding to up-regulated pathways and NES < 0 to down regulated pathways.
+
+**Figure 23**
+
+```{r quality-control-plot-variance-IQR}
+    rld <- rlog(dds, blind=FALSE)
+    sampleDists <- dist(t(assay(rld)))
+    library("RColorBrewer")
+    sampleDistMatrix <- as.matrix(sampleDists)
+    rownames(sampleDistMatrix) <- paste(rld$condition, rld$type, sep="-")
+    colnames(sampleDistMatrix) <- NULL
+    colors <- colorRampPalette( rev(brewer.pal(9, "Blues")) )(255)
+    pheatmap(sampleDistMatrix,
+         clustering_distance_rows=sampleDists,
+         clustering_distance_cols=sampleDists,
+         col=colors)
+```
+
+Sample-to-sample distance matrix. Experimental and control samples mostly clustered separately, with one experimental sample outlier. 
+
+**Figure 24**
+
+```{r pca-plot-variance-IQR}
+    plotPCA(rld, intgroup="condition")
+```
+
+PCA plot with 2 principal components explaining the majority of the variance. There is one experimental sample outlier, which aligns with the sample-to-sample distance matrix. 
+
+**Figure 25**
+
+```{r variance-IQR-volcano-plot}
+res_annot$significant <- ifelse(res_annot$padj < 0.05 & abs(res_annot$log2FoldChange) > 1, "Yes", "No")
+
+ggplot(res_annot, aes(x = log2FoldChange, y = -log10(padj), color = significant)) +
+  geom_point(alpha = 0.6, size = 1.5) +
+  scale_color_manual(values = c("No" = "grey", "Yes" = "red")) +
+  theme_minimal() +
+  labs(
+    title = "Volcano Plot of DESeq2 Results",
+    x = "log2 Fold Change",
+    y = "-log10 Adjusted p-value"
+  ) +
+  geom_hline(yintercept = -log10(0.05), linetype = "dashed", color = "blue") +
+  geom_vline(xintercept = c(-1, 1), linetype = "dashed", color = "blue")
+
+```
+
+Analogous volcano plot to 3c in the paper. 
+
+
+
+
+```{r session-info}
+sessionInfo()
+```
+
+
