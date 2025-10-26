@@ -1,7 +1,6 @@
 # TYK2 RNA-Seq Analysis Pipeline
 
-This Nextflow pipeline analyzes RNA sequencing data to investigate TYK2 expression in Type 1 Diabetes. The workflow automates quality control, genome indexing, alignment, quantification, and post-processing, using a combination of standard bioinformatics tools and custom Python modules. 
-
+This Nextflow pipeline analyzes RNA sequencing data to investigate TYK2 expression in Type 1 Diabetes. The workflow automates quality control, genome indexing, alignment, quantification, and post-processing, using a combination of standard bioinformatics tools and custom Python modules. . This project aimed to reproduce findings from Figure 3 in [Chandra et al., 2022](https://www.nature.com/articles/s41467-022-34069-z).
 # Modules Used
 The following modules, located in the modules folder, are integrated into the pipeline:
 
