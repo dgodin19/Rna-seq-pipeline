@@ -1,17 +1,20 @@
-# Project 2: RNAseq
+# TYK2 RNA-Seq Analysis Pipeline
 
-Please refer to the [instructions](https://bu-bioinfo.github.io/bf528/projects/project_2_rnaseq/)
-on the website for how to complete project 2. 
+This Nextflow pipeline analyzes RNA sequencing data to investigate TYK2 expression in Type 1 Diabetes. The workflow automates quality control, genome indexing, alignment, quantification, and post-processing, using a combination of standard bioinformatics tools and custom Python modules. 
 
-# Reminders
-- The week divisions in the directions are just suggestions for a reasonable amount of progress. The
-final report will be due on the listed date in the schedule.
+# Modules Used
+The following modules, located in the modules folder, are integrated into the pipeline:
 
-- I will make sample results available partway through the project to ensure that everyone can proceed to the biological analysis at some point. I will also reveal the original publication around
-this time so that you may compare your findings 
+    FASTQC: Performs quality control on raw sequencing reads.
+    GTF_PARSE: Custom Python script for parsing and preprocessing GTF annotation files.
+    STAR: Indexes the reference genome and annotation files for alignment.
+    STAR_ALIGN: Aligns RNA-seq reads to the indexed reference genome.
+    MULTIQC: Aggregates QC metrics and alignment statistics into unified multi-sample reports.
+    VERSE: Performs quantification of gene expression from BAM files and GTF annotations.
+    CONCAT: Custom Python script to aggregate quantification results across samples.
 
-- Only switch to the full data when you are 100% sure your pipeline works end-to-end. Please also
-make sure that you only run your pipeline once on the full data and to delete any old runs if you do
-happen to run it multiple times.
+# File Structure
 
-- Be mindful of time and make sure that you don't fall too behind. Please reach out to the TAs or myself if you do find yourself struggling and unable to advance. 
+    main.nf: The primary Nextflow pipeline script.
+    modules/: Contains all module scripts and custom processes.
+ 
